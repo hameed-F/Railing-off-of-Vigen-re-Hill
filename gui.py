@@ -431,10 +431,10 @@ class App(tk.Tk):
         try:
             p = cp.clean(self.msg.get("1.0", "end"))
             if not p: raise ValueError("Type a message (only letters A–Z are used).")
-            k = cp.hill_key(self.hk.get()); v = cp.clean(self.vk.get())
+            k = cp.hill_key_checked(self.hk.get()); v = cp.clean(self.vk.get())
             try: r = int(self.rl.get())
             except ValueError: raise ValueError("Rails must be a whole number.")
-            cp._check(v, r)
+            cp._check(v, r, len(p))
         except Exception as e:
             self.status.config(text=f"⚠  {e}", style="Bad.TLabel"); return None
         n = cp._size(k)

@@ -1,0 +1,40 @@
+Results for YOUR text (493 letters) · Hill 2x2 (HILL) · Vigenere key length 15 · 5 rails
+
+1. Efficiency (encryption / decryption vs Shift cipher)
+Letters      | Encrypt      | Decrypt      | Shift enc    | Slower than Shift
+         493 |     0.718 ms |     0.740 ms |     0.072 ms |   9.9x
+        4930 |     7.520 ms |     7.734 ms |     0.733 ms |  10.3x
+       49300 |    84.094 ms |    86.445 ms |     8.020 ms |  10.5x
+      493000 |  1151.093 ms |   904.952 ms |    96.523 ms |  11.9x
+· Time grows linearly with length, so encryption and decryption are O(n).
+
+2. Statistics after each stage
+Plaintext                IC = 0.0680
+After Hill               IC = 0.0399
+After Vigenere           IC = 0.0386
+After Rail Fence         IC = 0.0386
+· English ~0.066, random ~0.038. IC near 0.04 means letter counts reveal nothing.
+
+3. Known-plaintext attack vs amount of known plaintext
+Known letters | Success | Avg time
+           10 |     0% |    6.68 ms
+           20 |    30% |   20.29 ms
+           30 |    90% |   13.18 ms
+           40 |   100% |   13.02 ms
+           50 |   100% |   14.46 ms
+           60 |   100% |   19.06 ms
+           80 |   100% |   32.67 ms
+          100 |   100% |   42.51 ms
+          150 |   100% |   39.83 ms
+          200 |   100% |   37.22 ms
+          300 |   100% |   35.24 ms
+· Each row: 10 random key sets (2x2 Hill, key length 10-16, 2-12 rails) applied to YOUR text.
+· Letters needed for key length 10-16 (attack.min_known): 30-36.
+
+4. Attacks vs ciphertext length
+Ciphertext len | KPA (m=40) | KPA time | Freq attack 3-stage | Freq attack 2-stage (no Hill) | Freq time
+           123 |      100% |    9.6 ms |                  0% |                            0% |  106.8 ms
+           246 |      100% |   10.8 ms |                  0% |                            0% |   87.8 ms
+           369 |      100% |   12.4 ms |                  0% |                           30% |   65.7 ms
+           493 |      100% |   11.0 ms |                  0% |                           80% |   61.0 ms
+· Frequency analysis needs a few hundred letters; the Hill stage defeats it at every length.
