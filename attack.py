@@ -66,6 +66,20 @@ def frequency_attack(ct, max_rails=20, max_key_len=20):
     return best[1], best[2], best[3]
 
 
+def kasiski_period(ct, rails, gram=6):
+    """Ciphertext-ONLY leak: after undoing the rail fence with the right rail count, repeated n-grams occur at
+    distances that are multiples of the key period (L * n / gcd(L, n) letters).  Returns (period, #repeats)."""
+    from functools import reduce
+    u = rail_fence_decrypt(ct, rails)
+    seen, dist = {}, []
+    for i in range(len(u) - gram + 1):
+        g = u[i:i + gram]
+        if g in seen:
+            dist.append(i - seen[g])
+        seen[g] = i
+    return (reduce(gcd, dist), len(dist)) if dist else (None, 0)
+
+
 def _solve_mod_p(A, Y, p, n):
     """Solve A X = Y over GF(p) (A: E x n, Y: E x n). Returns X (n x n) or None if rank < n or inconsistent."""
     M = [[a % p for a in ra] + [y % p for y in ry] for ra, ry in zip(A, Y)]
@@ -101,7 +115,7 @@ def _recover_hill(dP, dC, n):
     return H if _inv(H) is not None else None
 
 
-def known_plaintext_attack(ct, known, max_rails=40, max_key_len=40, sizes=(2, 3, 4, 5, 6)):
+def known_plaintext_attack(ct, known, max_rails=40, max_key_len=40, sizes=(2, 3, 4, 5, 6), offset=0):
     """Returns (rails, vigenere_key, hill_matrix, plaintext) or None.
 
     The attacker is NOT told the rails, the Vigenere key, the Hill matrix or even its size n.
@@ -110,11 +124,17 @@ def known_plaintext_attack(ct, known, max_rails=40, max_key_len=40, sizes=(2, 3,
        the key repeats every T = L / gcd(L, n) Hill blocks, so  u_b - u_(b+T) = H (P_b - P_(b+T))
        -> a linear system for H solved mod 2 and mod 13.  We insist on at least TWO spare equations
        (E >= n + 2) so that a wrong guess cannot fit by luck, then rebuild the key and check every block.
+    Use offset=k when the known text starts at plaintext position k (default 0).
     Needs about n * (T + n + 8) known letters to be reliable (see min_known_letters), e.g. 42 for a 2x2 matrix with an 11-letter key."""
     known = known.upper()
     max_rails = min(max_rails, max(2, len(ct) - 1))
     for n in sizes:
-        known_n = known[:n * (max_key_len + n + 12)]      # more letters than this cannot help and only slow the search
+        # offset = plaintext position where the known text starts (0 = message start). Hill blocks are aligned
+        # to multiples of n, so skip the crib letters before the first full block.
+        skip = (-offset) % n
+        o2 = offset + skip                                # absolute position of the first full block
+        b0 = o2 // n                                      # its absolute block index
+        known_n = known[skip:skip + n * (max_key_len + n + 12)]   # more letters than this cannot help and only slow the search
         mb = len(known_n) // n
         if mb < n + 3:
             continue
@@ -132,7 +152,9 @@ def known_plaintext_attack(ct, known, max_rails=40, max_key_len=40, sizes=(2, 3,
                                    _solve_mod_p(dP, [[0]*n]*len(dP), 13, n) is not None) else None
         for r in range(2, max_rails + 1):
             u = rail_fence_decrypt(ct, r)
-            C = [ord(c) - 65 for c in u[:n * mb]]
+            C = [ord(c) - 65 for c in u[o2:o2 + n * mb]]
+            if len(C) < n * mb:
+                continue
             for L in Ls:
                 T = L // gcd(L, n)
                 dP = usable[T]
@@ -146,7 +168,7 @@ def known_plaintext_attack(ct, known, max_rails=40, max_key_len=40, sizes=(2, 3,
                 for b in range(mb):
                     for j in range(n):
                         v = (C[n*b + j] - sum(H[j*n + k] * P[n*b + k] for k in range(n))) % 26
-                        i = (n * b + j) % L
+                        i = (n * (b0 + b) + j) % L
                         if key[i] is None:
                             key[i] = v
                         elif key[i] != v:

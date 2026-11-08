@@ -14,11 +14,17 @@ def rand_hill(n=2):
     """Random invertible n x n Hill key (n*n letters)."""
     while True:
         w = rnd(n * n)
-        try: hill_key(w); return w
+        try: hill_key_checked(w); return w
         except ValueError: pass
 
 
-def rand_keys(n=2): return rand_hill(n), rnd(random.randint(10, 16)), random.randint(2, 12)
+def rand_vkey():
+    while True:
+        v = rnd(random.randint(10, 16))
+        if vigenere_weakness(v) is None: return v
+
+
+def rand_keys(n=2): return rand_hill(n), rand_vkey(), random.randint(2, 12)
 
 
 def _time(f, *a):

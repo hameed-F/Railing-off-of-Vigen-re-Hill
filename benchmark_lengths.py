@@ -10,14 +10,18 @@ def text(n):  # English-like text of any length (corpus repeated if needed)
 def hk():
     while True:
         w = rnd(4)
-        try: hill_key(w); return w
+        try: hill_key_checked(w); return w
         except ValueError: pass
+def gv():
+    while True:
+        v = rnd(random.randint(10, 16))
+        if vigenere_weakness(v) is None: return v
 T = 30
 print(f"{'n':>7} | {'KPA(m=60) ok%':>13} {'time ms':>8} | {'Freq 3-stage ok%':>16} {'time ms':>8} | {'Freq 2-stage ok%':>16}")
 for n in [100, 200, 500, 1000, 2000, 5000, 10000]:
     k = f = f2 = 0; tk = tf = 0.0
     for _ in range(T):
-        p, vk, r = text(n), rnd(random.randint(10, 16)), random.randint(2, 12)
+        p, vk, r = text(n), gv(), random.randint(2, 12)
         c = encrypt(p, hk(), vk, r)
         t = time.perf_counter(); res = known_plaintext_attack(c, p[:60]); tk += time.perf_counter() - t
         k += bool(res and res[3] == p)

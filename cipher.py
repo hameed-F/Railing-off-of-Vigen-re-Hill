@@ -140,26 +140,64 @@ def rail_fence_decrypt(c, rails):
     return "".join(out)
 
 
-# ---------- Full cipher ----------
-def _check(vkey, rails):
+# ---------- Key validation (rejects weak keys) ----------
+def hill_weakness(m):
+    """Return a reason string if the Hill matrix is weak, else None.
+    Weak = some output letter depends on a single input letter (identity, diagonal, permutation-like rows):
+    there is then no mixing between the letters of a block, so the stage degenerates to a simple substitution."""
+    n = _size(m)
+    for r in range(n):
+        if sum(1 for k in range(n) if m[r * n + k] % 26) < 2:
+            return f"row {r + 1} of the matrix mixes fewer than 2 letters (identity/diagonal-like keys give no diffusion)"
+    return None
+
+
+def vigenere_weakness(key):
+    """Return a reason string if the Vigenere key is weak, else None."""
+    L = len(key)
+    if len(set(key)) < 7:
+        return "needs at least 7 different letters (e.g. AAAAAAAAAA or ABABABABAB are effectively tiny keys)"
+    for p in range(1, L // 2 + 1):
+        if L % p == 0 and key[:p] * (L // p) == key:
+            return f"key is a repetition of a shorter {p}-letter word, so its real length is {p}"
+    return None
+
+
+def _check(vkey, rails, length=None):
     vkey = clean(vkey)
     if len(vkey) < 10:
         raise ValueError("Vigenere key must have at least 10 letters.")
+    why = vigenere_weakness(vkey)
+    if why:
+        raise ValueError("Weak Vigenere key: " + why)
     if rails < 2:
         raise ValueError("Need at least 2 rails.")
+    if length is not None and length > 0 and rails >= length:
+        raise ValueError(f"Rails ({rails}) must be smaller than the message length ({length}); otherwise the rail fence changes nothing.")
     return vkey
 
 
+def hill_key_checked(word):
+    m = hill_key(word)
+    why = hill_weakness(m)
+    if why:
+        raise ValueError("Weak Hill matrix: " + why)
+    return m
+
+
+# ---------- Full cipher ----------
 def encrypt(plaintext, hkey, vkey, rails):
-    vkey = _check(vkey, rails)
-    t = hill_encrypt(clean(plaintext), hill_key(hkey))
+    p = clean(plaintext)
+    vkey = _check(vkey, rails, len(p))
+    t = hill_encrypt(p, hill_key_checked(hkey))
     return rail_fence_encrypt(vigenere_encrypt(t, vkey), rails)
 
 
 def decrypt(ciphertext, hkey, vkey, rails):
-    vkey = _check(vkey, rails)
-    t = vigenere_decrypt(rail_fence_decrypt(clean(ciphertext), rails), vkey)
-    return hill_decrypt(t, hill_key(hkey))
+    c = clean(ciphertext)
+    vkey = _check(vkey, rails, len(c))
+    t = vigenere_decrypt(rail_fence_decrypt(c, rails), vkey)
+    return hill_decrypt(t, hill_key_checked(hkey))
 
 
 # ---------- Comparison ciphers ----------
