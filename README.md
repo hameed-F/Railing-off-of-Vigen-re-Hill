@@ -28,7 +28,9 @@ Tabs: **Encrypt - Decrypt - Attack - Results**. Type any message and keys at the
     python3 benchmark_lengths.py
 
 ## Group members
-(add names + roll numbers)
+* Muhammad Faisal Hameed (CTGA-23008)
+* Zarina Iqbal Buriro (CTGA-23016)
+* Hasan Abbasi (CTGA-23031)
 
 ## Hill size
 The Hill key is n*n letters (4 = 2x2, 9 = 3x3, 16 = 4x4 ...). No hard limit: cost is O(n) per letter; the key only needs det coprime to 26.
